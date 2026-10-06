@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Digit Lab: Deriv digit statistics</title>
+<style>
+:root{--bg:#f6f7f4;--ink:#16211c;--mute:#5d6b64;--card:#fff;--line:#dfe4de;--acc:#0f7a5c;--hi:#c2410c;--lo:#1d4ed8;--bar:#9fb8ab;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1512;--ink:#e6efe9;--mute:#93a39a;--card:#17201b;--line:#27332c;--acc:#3ddc97;--hi:#fb923c;--lo:#60a5fa;--bar:#3b5a4a}}
+:root[data-theme="dark"]{--bg:#0f1512;--ink:#e6efe9;--mute:#93a39a;--card:#17201b;--line:#27332c;--acc:#3ddc97;--hi:#fb923c;--lo:#60a5fa;--bar:#3b5a4a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Segoe UI",system-ui,sans-serif}
+main{max-width:760px;margin:0 auto;padding:20px 16px 48px}
+h1{font:700 1.7rem/1.15 Georgia,"Times New Roman",serif;margin:8px 0 6px}
+h2{font:600 1.05rem Georgia,serif;margin:0 0 10px}
+p{margin:0 0 10px}.mute{color:var(--mute);font-size:.9rem}
+.notice{border-left:4px solid var(--hi);background:var(--card);padding:12px 14px;border-radius:0 8px 8px 0;margin:14px 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin:12px 0}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+label{display:flex;flex-direction:column;font-size:.85rem;color:var(--mute);gap:4px}
+select,input{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);min-width:0}
+button{font:inherit;font-weight:600;padding:9px 16px;border:0;border-radius:8px;background:var(--acc);color:#fff;cursor:pointer}
+:root[data-theme="dark"] button{color:#06210f}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) button{color:#06210f}}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--lo);outline-offset:2px}
+#status{font-size:.85rem;color:var(--mute)}
+.bars{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;align-items:end;height:170px;margin-top:6px}
+.b{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:.75rem}
+.b i{display:block;width:100%;background:var(--bar);border-radius:4px 4px 0 0;min-height:2px}
+.b.max i{background:var(--hi)}.b.min i{background:var(--lo)}
+.b b{font-size:.95rem;margin-top:4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px}
+.stat strong{display:block;font:700 1.4rem Georgia,serif}
+.stream{display:flex;flex-wrap:wrap;gap:4px;font:600 .9rem ui-monospace,monospace}
+.stream span{width:26px;height:26px;display:grid;place-items:center;border:1px solid var(--line);border-radius:6px}
+.stream span:first-child{background:var(--acc);color:#fff;border-color:var(--acc)}
+.over{overflow-x:auto}
+#verdict{font-weight:600}
+.mini{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.mini div{border:1px solid var(--line);border-radius:8px;padding:6px;text-align:center;font-size:.8rem}
+.mini strong{display:block;font-size:1.05rem}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+td,th{padding:6px 4px;border-bottom:1px solid var(--line);text-align:left}
+.pos{color:var(--acc)}.neg{color:var(--hi)}
+.x{background:none;color:var(--mute);padding:2px 8px;border:1px solid var(--line)}
+details{border-top:1px solid var(--line);padding:8px 0}
+summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<main>
+<h1>Digit Lab</h1>
+<p class="mute">Live last-digit statistics for Deriv synthetic indices. It shows what the digits did. It does not predict what they will do.</p>
+
+<div class="notice"><strong>Read this first.</strong> Deriv synthetic indices are driven by a random number generator. Each tick's last digit is independent of the ones before it, so a digit being "hot" or "overdue" does not change the odds of the next tick. No tool can honestly promise a win rate. Never trade money you cannot afford to lose.</div>
+
+<section class="card">
+<div class="row">
+<label>Market
+<select id="sym">
+<option value="R_10">Volatility 10</option><option value="R_25">Volatility 25</option><option value="R_50">Volatility 50</option><option value="R_75">Volatility 75</option><option value="R_100" selected>Volatility 100</option>
+<option value="1HZ10V">Volatility 10 (1s)</option><option value="1HZ25V">Volatility 25 (1s)</option><option value="1HZ50V">Volatility 50 (1s)</option><option value="1HZ75V">Volatility 75 (1s)</option><option value="1HZ100V">Volatility 100 (1s)</option>
+</select></label>
+<label>Sample size
+<select id="n"><option>100</option><option>250</option><option>500</option><option selected>1000</option><option>2000</option><option>5000</option></select></label>
+<button id="go">Connect</button>
+</div>
+<p id="status" role="status">Not connected.</p>
+</section>
+
+<section class="card">
+<h2>Last-digit frequency</h2>
+<div class="bars" id="bars" aria-label="Digit frequency chart"></div>
+<p class="mute" style="margin-top:10px">Fair expectation is 10% per digit. Orange is the most frequent digit, blue the least.</p>
+</section>
+
+<section class="card">
+<h2>Is the sample different from random?</h2>
+<p id="verdict">Waiting for data.</p>
+<p class="mute" id="chi"></p>
+<p class="mute">With 10 digits, a chi-square above 16.9 would be unusual (5% level). Even then, past bias in a sample does not carry into future ticks.</p>
+</section>
+
+<section class="card">
+<h2>Contract breakdown</h2>
+<div class="grid">
+<div class="stat"><span class="mute">Even</span><strong id="ev">-</strong></div>
+<div class="stat"><span class="mute">Odd</span><strong id="od">-</strong></div>
+</div>
+<div class="row" style="margin-top:12px">
+<label>Barrier digit<select id="bar"></select></label>
+</div>
+<div class="grid" style="margin-top:10px">
+<div class="stat"><span class="mute">Over barrier</span><strong id="ov">-</strong></div>
+<div class="stat"><span class="mute">Under barrier</span><strong id="un">-</strong></div>
+<div class="stat"><span class="mute">Matches barrier</span><strong id="ma">-</strong></div>
+<div class="stat"><span class="mute">Differs from barrier</span><strong id="di">-</strong></div>
+</div>
+<p class="mute" style="margin-top:10px">Theoretical odds for this barrier: over <span id="tov"></span>, under <span id="tun"></span>, matches 10%, differs 90%.</p>
+</section>
+
+<section class="card">
+<h2>Break-even calculator</h2>
+<p class="mute">Enter the payout the platform shows for your contract. You need to win more often than the break-even rate just to stay level.</p>
+<div class="row">
+<label>Payout % on stake<input id="pay" type="number" value="95" min="1" max="1000" step="1"></label>
+<label>True win chance %<input id="win" type="number" value="50" min="0" max="100" step="0.1"></label>
+</div>
+<div class="grid" style="margin-top:10px">
+<div class="stat"><span class="mute">Break-even win rate</span><strong id="be">-</strong></div>
+<div class="stat"><span class="mute">Expected result per $1 staked</span><strong id="ex">-</strong></div>
+</div>
+</section>
+
+<section class="card">
+<h2>Pattern history</h2>
+<p class="mute">Ticks since each digit last appeared (current sample):</p>
+<div class="mini" id="gaps"></div>
+<p style="margin-top:12px"><span class="mute">Even/odd runs:</span> current <strong id="curRun">-</strong>, longest <strong id="maxRun">-</strong></p>
+<p class="mute" id="nextTitle" style="margin-bottom:4px"></p>
+<div class="mini" id="nextd"></div>
+<p class="mute" style="margin-top:8px">If digits had memory, the digit that follows the current one would favour certain values. In random data every digit stays near 10%, and long gaps or runs are normal.</p>
+</section>
+
+<section class="card">
+<h2>Connect your Deriv account (read-only)</h2>
+<p class="mute">Optional. Shows your balance and imports your real trades into the journal. Market data above works without this. Create a token at app.deriv.com/account/api-token with the <strong>Read</strong> scope only. Never tick Trade, Payments or Admin, and never share the token. It stays in this page's memory and is not saved.</p>
+<div class="row">
+<label>API token<input id="tok" type="password" autocomplete="off" style="width:220px"></label>
+<button id="ac">Connect account</button>
+<button id="ai" disabled>Import last 50 trades</button>
+</div>
+<p id="as" class="mute" role="status" style="margin-top:8px">Not connected.</p>
+</section>
+
+<section class="card">
+<h2>Trade journal</h2>
+<p class="mute">Log your real trades and see your true results. Saved only in this browser.</p>
+<div class="row">
+<label>Contract<select id="jt"><option>Even</option><option>Odd</option><option>Over</option><option>Under</option><option>Matches</option><option>Differs</option></select></label>
+<label>Stake<input id="js" type="number" min="0" step="0.01" style="width:90px"></label>
+<label>Profit or loss<input id="jp" type="number" step="0.01" placeholder="-1.00 or 0.95" style="width:120px"></label>
+<button id="ja">Add trade</button>
+</div>
+<div class="grid" style="margin:12px 0">
+<div class="stat"><span class="mute">Trades / win rate</span><strong id="jw">-</strong></div>
+<div class="stat"><span class="mute">Net result</span><strong id="jn">-</strong></div>
+<div class="stat"><span class="mute">Longest losing streak</span><strong id="jl">-</strong></div>
+<div class="stat"><span class="mute">Total staked</span><strong id="jq">-</strong></div>
+</div>
+<div class="over"><table><thead><tr><th>Contract</th><th>Stake</th><th>Result</th><th></th></tr></thead><tbody id="jb"></tbody></table></div>
+<p id="jh" class="mute" style="margin-top:8px"></p>
+</section>
+
+<section class="card">
+<h2>Lessons</h2>
+<details open><summary>Why digits cannot be predicted</summary><p>Synthetic indices use a certified random number generator. Every tick is a fresh draw, so past digits carry no information about the next one. Charts of "hot" and "cold" digits describe history, not the future.</p></details>
+<details><summary>The gambler's fallacy</summary><p>After five evens in a row, the next tick is still 50% even. Streaks feel meaningful because people notice them, but they appear naturally in random sequences. Use the pattern section above to see how common long runs are.</p></details>
+<details><summary>Break-even and the house edge</summary><p>A 95% payout on a 50% contract means you win 0.95 when right and lose 1.00 when wrong. You need about 51.3% wins to break even, but the true chance is 50%, so the expected result is negative on every trade. Try it in the calculator.</p></details>
+<details><summary>Matches/Differs and Over/Under</summary><p>Differs wins 90% of the time but pays little, so one loss wipes out many wins. Matches wins 10% and pays a lot. Both are priced to give the platform the same edge. Always check the true probability against the payout.</p></details>
+<details><summary>Protecting your money</summary><p>Only trade what you can afford to lose. Set a daily loss limit before you start and stop when you hit it. Do not raise stakes to win back losses. Use the journal to check your real record rather than your memory, and be wary of anyone selling signals or guaranteed win rates.</p></details>
+</section>
+
+<section class="card">
+<h2>Recent digits (newest first)</h2>
+<div class="stream over" id="stream"></div>
+</section>
+<p class="mute">Digit Lab is an educational statistics tool, not financial advice. Trading synthetic indices carries a high risk of loss.</p>
+</main>
+
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var ws=null,digits=[],pip=2;
+var barSel=$('bar');
+for(var i=0;i<10;i++){var o=document.createElement('option');o.value=i;o.textContent=i;if(i===4)o.selected=true;barSel.appendChild(o);}
+
+function digitOf(q){var s=Number(q).toFixed(pip);return +s.charAt(s.length-1);}
+function pct(x,n){return n?(100*x/n).toFixed(1)+'%':'-';}
+
+function render(){
+ var N=+$('n').value,d=digits.slice(-N),n=d.length,c=Array(10).fill(0);
+ d.forEach(function(x){c[x]++;});
+ var mx=Math.max.apply(null,c),mn=Math.min.apply(null,c);
+ $('bars').innerHTML=c.map(function(v,i){
+  var h=n?Math.max(2,(v/Math.max(mx,1))*130):2;
+  var cl=(n&&v===mx)?' max':(n&&v===mn)?' min':'';
+  return '<div class="b'+cl+'"><i style="height:'+h+'px"></i><b>'+i+'</b><span>'+pct(v,n)+'</span></div>';
+ }).join('');
+ if(n>=50){
+  var e=n/10,chi=c.reduce(function(a,v){return a+(v-e)*(v-e)/e;},0);
+  $('chi').textContent='Chi-square: '+chi.toFixed(2)+' over '+n+' ticks.';
+  $('verdict').textContent=chi>21.67?'Unusual sample (1% level). Still no basis to predict the next tick.':chi>16.92?'Mildly unusual sample (5% level). Likely noise.':'Consistent with random. No meaningful bias.';
+ }else{$('verdict').textContent='Need at least 50 ticks.';$('chi').textContent='';}
+ var b=+barSel.value,ev=0,ov=0,un=0,ma=0;
+ d.forEach(function(x){if(x%2===0)ev++;if(x>b)ov++;if(x<b)un++;if(x===b)ma++;});
+ $('ev').textContent=pct(ev,n);$('od').textContent=pct(n-ev,n);
+ $('ov').textContent=pct(ov,n);$('un').textContent=pct(un,n);$('ma').textContent=pct(ma,n);$('di').textContent=pct(n-ma,n);
+ $('tov').textContent=(9-b)*10+'%';$('tun').textContent=b*10+'%';
+ $('stream').innerHTML=digits.slice(-60).reverse().map(function(x){return '<span>'+x+'</span>';}).join('');
+ patterns(d);
+}
+
+function calc(){
+ var p=+$('pay').value/100,w=+$('win').value/100;
+ if(!(p>0)){return;}
+ $('be').textContent=(100/(1+p)).toFixed(2)+'%';
+ var r=w*p-(1-w);
+ $('ex').textContent=(r>=0?'+':'-')+'$'+Math.abs(r).toFixed(3);
+}
+
+function patterns(d){
+ var n=d.length;if(n<20)return;
+ var g='';for(var i=0;i<10;i++){var k=d.lastIndexOf(i);g+='<div>'+i+'<strong>'+(k<0?'>'+n:n-1-k)+'</strong></div>';}
+ $('gaps').innerHTML=g;
+ var cur=1,mx=1,run=1;
+ for(var j=1;j<n;j++){run=(d[j]%2===d[j-1]%2)?run+1:1;if(run>mx)mx=run;}
+ cur=run;$('curRun').textContent=cur;$('maxRun').textContent=mx;
+ var L=d[n-1],nx=Array(10).fill(0),t=0;
+ for(var m=0;m<n-1;m++){if(d[m]===L){nx[d[m+1]]++;t++;}}
+ $('nextTitle').textContent='Digit that followed '+L+' ('+t+' times in sample):';
+ $('nextd').innerHTML=nx.map(function(v,i){return '<div>'+i+'<strong>'+(t?(100*v/t).toFixed(0)+'%':'-')+'</strong></div>';}).join('');
+}
+var KEY='digitlab_journal',mem=[];
+function jload(){try{return JSON.parse(localStorage.getItem(KEY)||'[]');}catch(e){return mem;}}
+function jsave(a){mem=a;try{localStorage.setItem(KEY,JSON.stringify(a));}catch(e){$('jh').textContent='Browser storage is unavailable, so trades are kept only until you close this page.';}}
+function jrender(){
+ var a=jload(),w=0,net=0,q=0,ls=0,ml=0;
+ a.forEach(function(t){net+=t.p;q+=t.s;if(t.p>0){w++;ls=0;}else{ls++;if(ls>ml)ml=ls;}});
+ $('jw').textContent=a.length?a.length+' / '+(100*w/a.length).toFixed(0)+'%':'-';
+ $('jn').textContent=a.length?(net>=0?'+':'-')+'$'+Math.abs(net).toFixed(2):'-';
+ $('jn').className=net>=0?'pos':'neg';
+ $('jl').textContent=a.length?ml:'-';$('jq').textContent=a.length?'$'+q.toFixed(2):'-';
+ $('jb').innerHTML=a.slice(-20).reverse().map(function(t){var i=a.indexOf(t);
+  return '<tr><td>'+t.c+'</td><td>$'+t.s.toFixed(2)+'</td><td class="'+(t.p>0?'pos':'neg')+'">'+(t.p>0?'+':'')+t.p.toFixed(2)+'</td><td><button class="x" data-i="'+i+'" aria-label="Delete trade">x</button></td></tr>';}).join('');
+}
+$('ja').onclick=function(){
+ var s=parseFloat($('js').value),p=parseFloat($('jp').value);
+ if(!(s>0)||isNaN(p)){$('jh').textContent='Enter a stake above 0 and a profit or loss amount.';return;}
+ var a=jload();a.push({c:$('jt').value,s:s,p:p});jsave(a);$('jh').textContent='';$('jp').value='';jrender();
+};
+$('jb').onclick=function(e){var i=e.target.getAttribute&&e.target.getAttribute('data-i');if(i===null||i===undefined)return;var a=jload();a.splice(+i,1);jsave(a);jrender();};
+var aws=null;
+function astat(t){$('as').textContent=t;}
+function ctype(sc){var m=/^DIGIT(EVEN|ODD|OVER|UNDER|MATCH|DIFF)/.exec(sc||'');
+ return m?{EVEN:'Even',ODD:'Odd',OVER:'Over',UNDER:'Under',MATCH:'Matches',DIFF:'Differs'}[m[1]]:null;}
+$('ac').onclick=function(){
+ var t=$('tok').value.trim();
+ if(!t){astat('Paste your read-only API token first.');return;}
+ if(aws){try{aws.close();}catch(e){}}
+ astat('Connecting...');$('ai').disabled=true;
+ try{aws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');}catch(e){astat('Could not connect: '+e.message);return;}
+ aws.onopen=function(){aws.send(JSON.stringify({authorize:t}));};
+ aws.onerror=function(){astat('Connection failed. Check your internet and open this file in a normal browser tab.');};
+ aws.onmessage=function(m){
+  var r=JSON.parse(m.data);
+  if(r.error){astat('Deriv says: '+r.error.message);return;}
+  if(r.msg_type==='authorize'){
+   $('tok').value='';
+   var a=r.authorize;
+   astat('Connected as '+a.loginid+'. Balance: '+Number(a.balance).toFixed(2)+' '+a.currency+'.');
+   $('ai').disabled=false;
+  }else if(r.msg_type==='profit_table'){
+   var tx=(r.profit_table&&r.profit_table.transactions)||[],a2=jload(),added=0;
+   tx.slice().reverse().forEach(function(x){
+    var c=ctype(x.shortcode);
+    if(!c||a2.some(function(e){return e.id===x.contract_id;}))return;
+    a2.push({id:x.contract_id,c:c,s:+x.buy_price,p:+(x.sell_price-x.buy_price).toFixed(2)});added++;
+   });
+   jsave(a2);jrender();
+   astat('Imported '+added+' new digit trades. Other contract types are skipped.');
+  }
+ };
+};
+$('ai').onclick=function(){
+ if(!aws||aws.readyState!==1){astat('Connect your account first.');return;}
+ astat('Importing...');
+ aws.send(JSON.stringify({profit_table:1,description:1,limit:50,sort:'DESC'}));
+};
+function status(t){$('status').textContent=t;}
+
+function connect(){
+ if(ws){try{ws.close();}catch(e){}}
+ digits=[];render();
+ var sym=$('sym').value,count=Math.min(5000,Math.max(+$('n').value,100));
+ status('Connecting...');
+ try{ws=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');}catch(e){status('Could not open a connection: '+e.message);return;}
+ ws.onopen=function(){
+  ws.send(JSON.stringify({ticks_history:sym,end:'latest',count:count,style:'ticks'}));
+ };
+ ws.onmessage=function(m){
+  var r=JSON.parse(m.data);
+  if(r.error){status('Deriv error: '+r.error.message);return;}
+  if(r.msg_type==='history'){
+   pip=r.pip_size!=null?r.pip_size:2;
+   digits=r.history.prices.map(digitOf);
+   ws.send(JSON.stringify({ticks:sym,subscribe:1}));
+   status('Live. '+digits.length+' ticks loaded.');
+   render();
+  }else if(r.msg_type==='tick'){
+   if(r.tick.pip_size!=null)pip=r.tick.pip_size;
+   digits.push(digitOf(r.tick.quote));
+   if(digits.length>6000)digits.shift();
+   render();
+  }
+ };
+ ws.onerror=function(){status('Connection failed. Open this file in a normal browser tab with internet access.');};
+ ws.onclose=function(){if($('status').textContent.indexOf('Live')===0)status('Disconnected. Tap Connect to resume.');};
+}
+
+$('go').onclick=connect;
+$('n').onchange=render;barSel.onchange=render;
+$('sym').onchange=function(){if(ws&&ws.readyState===1)connect();};
+$('pay').oninput=calc;$('win').oninput=calc;
+calc();render();jrender();
+})();
+</script>
+</body>
+</html>
